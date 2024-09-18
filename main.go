@@ -5,6 +5,7 @@ import (
 	"kibzrael/cacheproxy/cmd/cacheproxy"
 	"os"
 	"strconv"
+	"strings"
 )
 
 func main(){
@@ -23,6 +24,11 @@ func main(){
 			port = p
 		} else if arg == "--origin"{
 			origin = args[i+1]
+			chars := strings.Split(origin, "")
+			// Remove any trailing /
+			if chars[len(chars) - 1] == "/"{
+				origin = strings.Join(chars[:len(chars) - 1], "")
+			}
 		} else if arg == "--clear-cache"{
 			clearCache = true
 		}
