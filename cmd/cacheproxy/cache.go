@@ -1,33 +1,44 @@
 package cacheproxy
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
+
+	"github.com/patrickmn/go-cache"
 )
 
-func CacheRequest(origin string) func(http.ResponseWriter, *http.Request) {
+func CacheRequest(origin string, c *cache.Cache) func(http.ResponseWriter, *http.Request) {
 	return func(res http.ResponseWriter, req *http.Request) {
 		log.Printf("Fetching %s from %s", req.URL.Path, origin)
-		response, err := http.Get(origin + req.URL.Path)
-		if err != nil{
-			panic(err)
+		request := origin + req.URL.Path
+
+		found := CheckCache(request, c, res, req)
+		if found {
+			return
 		}
-		
-		if response.StatusCode != 200{
+		res.Header().Set("X-Cache", "MISS")
+
+		response, err := http.Get(request)
+		if err != nil {
+			log.Println("ERROR: ", err)
+			fmt.Fprintln(res, "Request Failed: ", err)
+			return
+		}
+
+		if response.StatusCode != 200 {
 			fmt.Fprintln(res, "Request Failed with status code: ", response.StatusCode)
-			return;
+			return
 		}
 
-		headers := res.Header()
+		bodyBytes, _ := io.ReadAll(response.Body)
+		// Restore the io.ReadCloser to its original state
+		response.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
+		ForwardResponse(res, response)
+		response.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
 
-		for key , value := range headers{
-			for _, v := range value{
-				res.Header().Set(key, v)
-			}
-		}
-		res.WriteHeader(response.StatusCode)
-		io.Copy(res, response.Body)
+		CacheResponse(request, c, response)
 	}
 }

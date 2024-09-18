@@ -6,6 +6,9 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
+
+	"github.com/patrickmn/go-cache"
 )
 
 func main(){
@@ -15,6 +18,8 @@ func main(){
 	var origin string
 	clearCache := false
 
+	c := cache.New(cache.NoExpiration, 10 * time.Minute)
+	
 	for i, arg := range args{
 		if arg == "--port"{
 			p, err := strconv.ParseUint(args[i+1], 10, 64)
@@ -41,6 +46,6 @@ func main(){
 	} else if origin == "" {
 		fmt.Println("Origin argument required --origin")
 	} else {
-		cacheproxy.Proxy(port, origin)
+		cacheproxy.Proxy(port, origin, c)
 	}
 }
