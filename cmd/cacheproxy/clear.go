@@ -1,0 +1,3 @@
+package cacheproxy
+
+func ClearCache(){}
