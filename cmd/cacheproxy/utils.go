@@ -3,10 +3,12 @@ package cacheproxy
 import (
 	"bufio"
 	"bytes"
+	"errors"
 	"io"
 	"log"
 	"net/http"
 	"net/http/httputil"
+	"os"
 
 	"github.com/patrickmn/go-cache"
 )
@@ -47,4 +49,54 @@ func CacheResponse(request string, c *cache.Cache, response *http.Response) {
 		return
 	}
 	c.Set(request, b, cache.NoExpiration)
+
+	file, _ := CacheFile()
+	defer file.Close()
+	writer := CacheWriter{
+		file: file,
+	}
+	c.Save(writer)
+}
+
+const FILE_NAME string = "Cache"
+
+func CacheFile() (*os.File, bool) {
+	file, err := os.OpenFile(FILE_NAME, os.O_RDWR, 0644)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			file, err = os.Create(FILE_NAME)
+			if err != nil {
+				panic(err)
+			}
+			return file, true
+		} else {
+			panic(err)
+		}
+	}
+	return file, false
+}
+
+func LoadCache(c *cache.Cache) {
+	file, _ := CacheFile()
+	defer file.Close()
+	reader := CacheReader{
+		file: file,
+	}
+	c.Load(reader)
+}
+
+type CacheWriter struct {
+	file *os.File
+}
+
+func (w CacheWriter) Write(p []byte) (n int, err error) {
+	return w.file.Write(p)
+}
+
+type CacheReader struct {
+	file *os.File
+}
+
+func (r CacheReader) Read(b []byte) (int, error) {
+	return r.file.Read(b)
 }

@@ -1,3 +1,7 @@
 package cacheproxy
 
-func ClearCache(){}
+import "os"
+
+func ClearCache() {
+	os.Remove(FILE_NAME)
+}
